@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Account Monitoring Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .stats { display: flex; gap: 20px; margin-bottom: 20px; }
+    .card { padding: 15px; border: 1px solid #ddd; border-radius: 8px; width: 180px; text-align: center; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    table, th, td { border: 1px solid #ddd; padding: 8px; }
+    th { background: #f4f4f4; }
+  </style>
+</head>
+<body>
+  <h2>📊 Account Monitoring Dashboard</h2>
+
+  <div class="stats">
+    <div class="card"><h4>Balance</h4><p id="balance">--</p></div>
+    <div class="card"><h4>Equity</h4><p id="equity">--</p></div>
+    <div class="card"><h4>Profit</h4><p id="profit">--</p></div>
+    <div class="card"><h4>Drawdown %</h4><p id="dd">--</p></div>
+    <div class="card"><h4>Win Rate %</h4><p id="winrate">--</p></div>
+  </div>
+
+  <canvas id="balanceChart" width="800" height="300"></canvas>
+
+  <h3>📑 Trade History</h3>
+  <table id="tradesTable">
+    <thead>
+      <tr>
+        <th>Ticket</th><th>Symbol</th><th>Type</th><th>Lots</th>
+        <th>Open Time</th><th>Open Price</th>
+        <th>Close Time</th><th>Close Price</th><th>Profit</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    async function loadAccount() {
+      const res = await fetch("account_data.csv?_=" + Date.now());
+      const text = await res.text();
+      const rows = text.trim().split("\n");
+      if(rows.length < 2) return;
+      const last = rows[rows.length-1].split(",");
+      document.getElementById("balance").innerText = last[2];
+      document.getElementById("equity").innerText  = last[3];
+      document.getElementById("profit").innerText  = last[4];
+      document.getElementById("dd").innerText      = last[6];
+      document.getElementById("winrate").innerText = last[8];
+
+      // Chart Data
+      let labels=[], balances=[];
+      rows.slice(1).forEach(r=>{
+        let c=r.split(",");
+        labels.push(c[0]+" "+c[1]);
+        balances.push(parseFloat(c[2]));
+      });
+      new Chart(document.getElementById("balanceChart"), {
+        type:'line',
+        data:{ labels:labels, datasets:[{ label:"Balance", data:balances, borderColor:'blue', fill:false }] }
+      });
+    }
+
+    async function loadTrades() {
+      const res = await fetch("trades_data.csv?_=" + Date.now());
+      const text = await res.text();
+      const rows = text.trim().split("\n").slice(1);
+      const tbody = document.querySelector("#tradesTable tbody");
+      tbody.innerHTML="";
+      rows.forEach(r=>{
+        const cols=r.split(",");
+        let tr=document.createElement("tr");
+        cols.forEach(c=>{
+          let td=document.createElement("td");
+          td.innerText=c;
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+    }
+
+    loadAccount();
+    loadTrades();
+    setInterval(()=>{ loadAccount(); loadTrades(); }, 60000); // تحديث كل دقيقة
+  </script>
+</body>
+</html>
